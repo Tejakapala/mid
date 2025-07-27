@@ -1,18 +1,16 @@
 import streamlit as st
-import pymysql
+from supabase import create_client
 import re
+import pandas as pd
 
-# ✅ Replace with your actual MySQL credentials
-conn = pymysql.connect(
-    host="localhost",            # ✅ localhost since you're using MySQL Workbench locally
-    user="root",                 # ✅ your MySQL username (default is usually 'root')
-    password="moTher@123",   # 🔁 replace with your actual password
-    database="mid_marks"        # ✅ this is the database you created as per your screenshot
-)
+# ✅ Supabase credentials (replace with your real project values)
+SUPABASE_URL = "https://lsxzkmydgkfopkfnurhn.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzeHprbXlkZ2tmb3BrZm51cmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM2MTc1MTMsImV4cCI6MjA2OTE5MzUxM30.9667x3VLGw799MrNPLVcAQ5FxZiAvQh0ulcuPdJNU4g"
 
-cursor = conn.cursor()
+# ✅ Initialize Supabase client
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-st.title("📘 Mid Marks Entry Form (MySQL)")
+st.title("📘 Mid Marks Entry Form (Supabase)")
 
 with st.form("marks_form"):
     id = st.text_input("ID (e.g., N220123)")
@@ -37,19 +35,41 @@ with st.form("marks_form"):
             st.error("❌ All subject marks must be greater than 0")
         else:
             try:
-                # ✅ Insert into MySQL
-                cursor.execute('''
-                    INSERT INTO mid_marks (id, name, roll_no, daa, dld, flat, dbms, ps)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ''', (id, name, roll, daa, dld, flat, dbms, ps))
-                conn.commit()
-                st.success("✅ Marks submitted successfully!")
+                # ✅ Insert data into Supabase table
+               result = supabase.table("mid_marks").insert({
+                    "id": id,
+                    "name": name,
+                    "roll_no": roll,
+                    "daa": daa,
+                    "dld": dld,
+                    "flat": flat,
+                    "dbms": dbms,
+                    "ps": ps
+                }).execute()
+               
 
-                # ✅ Display current table
-                cursor.execute("SELECT * FROM mid_marks")
-                rows = cursor.fetchall()
-                st.subheader("📄 Stored Records")
-                st.dataframe(rows)
+               if result.data and isinstance(result.data, list):
+                    # print("result:\n\n",result)
+                    # print('resukt[0]\n\n',result[0])
+                    # print('dict instance\n\n\n:',isinstance(result, dict))
+                    # print('list instance\n\n:',isinstance(result, list))
+                    st.success("✅ Data submitted successfully!")
+               else:
+                    st.warning("⚠ Data submitted, but no confirmation received.")
 
-            except mysql.connector.Error as e:
+            except Exception as e:
                 st.error(f"❌ Error inserting data: {e}")
+
+            # ✅ Show all records
+            try:
+                records = supabase.table("mid_marks").select("*").execute()
+                print(records)
+                if isinstance(records.data, list):
+                    st.subheader("📄 All Mid Marks Records")
+                    df=pd.DataFrame(records.data)
+                    st.dataframe(df)
+      
+                else:
+                    st.warning("⚠ Could not fetch records.")
+            except Exception as e:
+                st.error(f"❌ Error fetching records: {e}")
